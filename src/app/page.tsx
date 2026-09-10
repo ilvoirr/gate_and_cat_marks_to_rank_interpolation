@@ -464,6 +464,41 @@ const CAT_DATA = [
   }
 ];
 // ── Interpolation helpers ──────────────────────────────────────────────────────
+// ── CAT 2025 Sectional Data ───────────────────────────────────────────────────
+const CAT_VARC_DATA = [
+  { m: 72, p: 100 }, { m: 53.28, p: 99.9 }, { m: 46.95, p: 99.5 }, { m: 43.50, p: 99 }, 
+  { m: 39.28, p: 98 }, { m: 36.45, p: 97 }, { m: 34.19, p: 96 }, { m: 32.45, p: 95 }, 
+  { m: 26.23, p: 90 }, { m: 22.44, p: 85 }, { m: 19.49, p: 80 }, { m: 17.33, p: 75 }, 
+  { m: 15.44, p: 70 }, { m: 11.99, p: 60 }, { m: 8.88, p: 50 }, { m: 0, p: 0 }
+];
+const CAT_DILR_DATA = [
+  { m: 66, p: 100 }, { m: 42.16, p: 99.9 }, { m: 33.23, p: 99.5 }, { m: 29.71, p: 99 }, 
+  { m: 25.99, p: 98 }, { m: 24.41, p: 97 }, { m: 21.99, p: 96 }, { m: 21.23, p: 95 }, 
+  { m: 16.68, p: 90 }, { m: 13.98, p: 85 }, { m: 11.61, p: 80 }, { m: 9.98, p: 75 }, 
+  { m: 8.77, p: 70 }, { m: 6.27, p: 60 }, { m: 4.29, p: 50 }, { m: 0, p: 0 }
+];
+const CAT_QA_DATA = [
+  { m: 66, p: 100 }, { m: 38.69, p: 99.9 }, { m: 31.33, p: 99.5 }, { m: 27.31, p: 99 }, 
+  { m: 23.44, p: 98 }, { m: 21.41, p: 97 }, { m: 19.43, p: 96 }, { m: 18.44, p: 95 }, 
+  { m: 14.38, p: 90 }, { m: 12.00, p: 85 }, { m: 10.05, p: 80 }, { m: 8.78, p: 75 }, 
+  { m: 7.33, p: 70 }, { m: 5.58, p: 60 }, { m: 3.99, p: 50 }, { m: 0, p: 0 }
+];
+
+// ── Interpolation helpers ──────────────────────────────────────────────────────
+function interpolateSection(data: { m: number; p: number }[], marks: number): number {
+  const sorted = [...data].sort((a, b) => b.m - a.m);
+  if (marks >= sorted[0].m) return sorted[0].p;
+  if (marks <= sorted[sorted.length - 1].m) return sorted[sorted.length - 1].p;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const hi = sorted[i], lo = sorted[i + 1];
+    if (marks <= hi.m && marks >= lo.m) {
+      const t = (hi.m - marks) / (hi.m - lo.m);
+      return parseFloat((hi.p + t * (lo.p - hi.p)).toFixed(2));
+    }
+  }
+  return sorted[sorted.length - 1].p;
+}
+
 function interpolateRank(data: { m: number; r: number }[], marks: number): number {
   const sorted = [...data].sort((a, b) => b.m - a.m);
   const clampedMarks = Math.min(sorted[0].m, Math.max(sorted[sorted.length - 1].m, marks));
@@ -550,9 +585,10 @@ export default function MarksAIR() {
   const catResult = interpolateCAT(currentCatTotal);
   
   // UI Sectional Results
-  const varcResult = interpolateCAT(catScores.varc * (204/72));
-  const dilrResult = interpolateCAT(catScores.dilr * (204/66));
-  const qaResult   = interpolateCAT(catScores.qa * (204/66));
+ // UI Sectional Results
+  const varcResult = { p: interpolateSection(CAT_VARC_DATA, catScores.varc) };
+  const dilrResult = { p: interpolateSection(CAT_DILR_DATA, catScores.dilr) };
+  const qaResult   = { p: interpolateSection(CAT_QA_DATA, catScores.qa) };
 
   // Sync state between total and sections based on proportions
   const handleCatModeToggle = (newMode: CatInputMode) => {
@@ -683,12 +719,12 @@ export default function MarksAIR() {
         }
       ];
 
-      // Dynamically generate section lines based on total scaling 
+    // Dynamically generate section lines based on true sectional data
       if (catInputMode === "sections") {
-        const generateSectionData = (maxMarks: number) => {
+        const generateSectionData = (dataArray: {m: number, p: number}[], maxMarks: number) => {
           const d = [];
-          for(let i=0; i<=maxMarks; i+=3) {
-            d.push({ x: i, y: 100 - interpolateCAT(i * (204/maxMarks)).p });
+          for(let i = 0; i <= maxMarks; i += 2) { 
+            d.push({ x: i, y: 100 - interpolateSection(dataArray, i) });
           }
           return d;
         };
@@ -696,7 +732,7 @@ export default function MarksAIR() {
         datasets.push(
           {
             label: "VARC",
-            data: generateSectionData(72),
+            data: generateSectionData(CAT_VARC_DATA, 72),
             borderColor: varcColor,
             pointRadius: 0, pointHoverRadius: 0,
             borderWidth: 2, tension: 0.35, fill: false, borderDash: [4, 4],
@@ -704,7 +740,7 @@ export default function MarksAIR() {
           },
           {
             label: "DILR",
-            data: generateSectionData(66),
+            data: generateSectionData(CAT_DILR_DATA, 66),
             borderColor: dilrColor,
             pointRadius: 0, pointHoverRadius: 0,
             borderWidth: 2, tension: 0.35, fill: false, borderDash: [4, 4],
@@ -712,7 +748,7 @@ export default function MarksAIR() {
           },
           {
             label: "QA",
-            data: generateSectionData(66),
+            data: generateSectionData(CAT_QA_DATA, 66),
             borderColor: qaColor,
             pointRadius: 0, pointHoverRadius: 0,
             borderWidth: 2, tension: 0.35, fill: false, borderDash: [4, 4],
@@ -828,11 +864,10 @@ export default function MarksAIR() {
       
       let varcP, dilrP, qaP;
       if (catInputMode === "sections") {
-        if (c <= 72) varcP = interpolateCAT(c * (204/72)).p;
-        if (c <= 66) dilrP = interpolateCAT(c * (204/66)).p;
-        if (c <= 66) qaP = interpolateCAT(c * (204/66)).p;
+        if (c <= 72) varcP = interpolateSection(CAT_VARC_DATA, c);
+        if (c <= 66) dilrP = interpolateSection(CAT_DILR_DATA, c);
+        if (c <= 66) qaP = interpolateSection(CAT_QA_DATA, c);
       }
-      
       setHover({ x: tx, y: Math.max(8, mouseY - 44), marks: c, catR: r, catP: p, varcP, dilrP, qaP });
     }
   }, [mode, catInputMode]);
