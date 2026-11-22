@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import { Chart, registerables } from "chart.js";
 
 Chart.register(...registerables);
@@ -624,6 +624,15 @@ export default function MarksAIR() {
     setCatInputMode(newMode);
   };
 
+  // CAT: 3 marks per question → VARC 24Q, DILR 22Q, QA 22Q
+  const catQuestion = (marks: number, total: number) =>
+    `${Math.min(Math.floor(marks / 3), total)}/${total}`;
+
+  const handleCatReset = () => {
+    setCatScores({ varc: 0, dilr: 0, qa: 0 });
+    setCatTotalOnly(0);
+  };
+
   // ── Theme tokens ─────────────────────────────────────────────────────────────
   const bg      = isDark ? "bg-[#171614]"     : "bg-[#f7f6f2]";
   const surface = isDark ? "bg-[#1c1b19]"     : "bg-[#ffffff]";
@@ -1123,7 +1132,19 @@ export default function MarksAIR() {
               
               {/* Premium Header & Toggle */}
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-sm font-bold">Your Score</h2>
+                <div className="flex items-center gap-1.5">
+                  <h2 className="text-sm font-bold">Your Score</h2>
+                  <button
+                    onClick={handleCatReset}
+                    title="Reset all sliders to zero"
+                    className={`w-5 h-5 rounded flex items-center justify-center ${muted} transition-opacity hover:opacity-60`}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                    </svg>
+                  </button>
+                </div>
                 <div className={`flex items-center p-0.5 rounded-lg border ${border} ${sfOff}`}>
                   <button
                     onClick={() => handleCatModeToggle("total")}
@@ -1151,8 +1172,8 @@ export default function MarksAIR() {
                       type="range" min={0} max={204} step={1}
                       value={catTotalOnly}
                       onChange={(e) => setCatTotalOnly(parseInt(e.target.value))}
-                      className="w-full cursor-pointer"
-                      style={{ accentColor: accentCat }}
+                      className="cat-range w-full"
+                      style={{ "--cat-thumb": accentCat, "--cat-track": `${accentCat}40`, "--cat-fill": `${(catTotalOnly / 204) * 100}%`, accentColor: accentCat } as CSSProperties}
                     />
                   </div>
                 ) : (
@@ -1160,45 +1181,69 @@ export default function MarksAIR() {
                     {/* VARC Glass Slider */}
                     <div className="p-3 rounded-xl border" style={{ borderColor: `${varcColor}33`, backgroundColor: `${varcColor}0d` }}>
                       <div className="flex justify-between items-center mb-2">
-                        <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: varcColor }}>VARC</label>
+                        <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: varcColor }}>
+                          VARC
+                          <span
+                            className="ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold leading-4"
+                            style={{ backgroundColor: `${varcColor}26`, color: varcColor }}
+                          >
+                            {catQuestion(catScores.varc, 24)}
+                          </span>
+                        </label>
                         <span className="text-sm font-bold tabular-nums" style={{ color: text }}>{catScores.varc} <span className="text-[10px] font-medium opacity-50">/ 72</span></span>
                       </div>
                       <input
                         type="range" min={0} max={72} step={1}
                         value={catScores.varc}
                         onChange={(e) => setCatScores(prev => ({ ...prev, varc: parseInt(e.target.value) }))}
-                        className="w-full cursor-pointer"
-                        style={{ accentColor: varcColor }}
+                        className="cat-range w-full"
+                        style={{ "--cat-thumb": varcColor, "--cat-track": `${varcColor}40`, "--cat-fill": `${(catScores.varc / 72) * 100}%`, accentColor: varcColor } as CSSProperties}
                       />
                     </div>
 
                     {/* DILR Glass Slider */}
                     <div className="p-3 rounded-xl border" style={{ borderColor: `${dilrColor}33`, backgroundColor: `${dilrColor}0d` }}>
                       <div className="flex justify-between items-center mb-2">
-                        <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: dilrColor }}>DILR</label>
+                        <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: dilrColor }}>
+                          DILR
+                          <span
+                            className="ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold leading-4"
+                            style={{ backgroundColor: `${dilrColor}26`, color: dilrColor }}
+                          >
+                            {catQuestion(catScores.dilr, 22)}
+                          </span>
+                        </label>
                         <span className="text-sm font-bold tabular-nums" style={{ color: text }}>{catScores.dilr} <span className="text-[10px] font-medium opacity-50">/ 66</span></span>
                       </div>
                       <input
                         type="range" min={0} max={66} step={1}
                         value={catScores.dilr}
                         onChange={(e) => setCatScores(prev => ({ ...prev, dilr: parseInt(e.target.value) }))}
-                        className="w-full cursor-pointer"
-                        style={{ accentColor: dilrColor }}
+                        className="cat-range w-full"
+                        style={{ "--cat-thumb": dilrColor, "--cat-track": `${dilrColor}40`, "--cat-fill": `${(catScores.dilr / 66) * 100}%`, accentColor: dilrColor } as CSSProperties}
                       />
                     </div>
 
                     {/* QA Glass Slider */}
                     <div className="p-3 rounded-xl border" style={{ borderColor: `${qaColor}33`, backgroundColor: `${qaColor}0d` }}>
                       <div className="flex justify-between items-center mb-2">
-                        <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: qaColor }}>QA</label>
+                        <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: qaColor }}>
+                          QA
+                          <span
+                            className="ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold leading-4"
+                            style={{ backgroundColor: `${qaColor}26`, color: qaColor }}
+                          >
+                            {catQuestion(catScores.qa, 22)}
+                          </span>
+                        </label>
                         <span className="text-sm font-bold tabular-nums" style={{ color: text }}>{catScores.qa} <span className="text-[10px] font-medium opacity-50">/ 66</span></span>
                       </div>
                       <input
                         type="range" min={0} max={66} step={1}
                         value={catScores.qa}
                         onChange={(e) => setCatScores(prev => ({ ...prev, qa: parseInt(e.target.value) }))}
-                        className="w-full cursor-pointer"
-                        style={{ accentColor: qaColor }}
+                        className="cat-range w-full"
+                        style={{ "--cat-thumb": qaColor, "--cat-track": `${qaColor}40`, "--cat-fill": `${(catScores.qa / 66) * 100}%`, accentColor: qaColor } as CSSProperties}
                       />
                     </div>
 
@@ -1218,8 +1263,8 @@ export default function MarksAIR() {
                           const qa = t - varc - dilr;
                           setCatScores({ varc, dilr, qa });
                         }}
-                        className="w-full cursor-pointer"
-                        style={{ accentColor: accentCat2 }}
+                        className="cat-range w-full"
+                        style={{ "--cat-thumb": accentCat2, "--cat-track": `${accentCat2}40`, "--cat-fill": `${(currentCatTotal / 204) * 100}%`, accentColor: accentCat2 } as CSSProperties}
                       />
                     </div>
                   </>

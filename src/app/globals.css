@@ -24,3 +24,48 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* CAT section sliders — slightly larger track & thumb, tinted via --cat-thumb/--cat-track */
+input[type="range"].cat-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1.375rem;
+  background: transparent;
+  cursor: pointer;
+}
+.cat-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(to right,
+    var(--cat-thumb, #888) 0%,
+    var(--cat-thumb, #888) var(--cat-fill, 0%),
+    var(--cat-track, rgba(128, 128, 128, 0.35)) var(--cat-fill, 0%),
+    var(--cat-track, rgba(128, 128, 128, 0.35)) 100%);
+}
+.cat-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 9999px;
+  background: var(--cat-thumb, #888);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.cat-range::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(to right,
+    var(--cat-thumb, #888) 0%,
+    var(--cat-thumb, #888) var(--cat-fill, 0%),
+    var(--cat-track, rgba(128, 128, 128, 0.35)) var(--cat-fill, 0%),
+    var(--cat-track, rgba(128, 128, 128, 0.35)) 100%);
+}
+.cat-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--cat-thumb, #888);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
