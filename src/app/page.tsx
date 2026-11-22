@@ -577,6 +577,45 @@ type HoverInfo = {
 type ExamMode = "gate" | "cat";
 type CatInputMode = "total" | "sections";
 
+// ── CAT question stepper (3 marks = 1 question) ────────────────────────────────
+function CatQStep({ marks, max, total, color, onChange }: {
+  marks: number; max: number; total: number; color: string;
+  onChange: (marks: number) => void;
+}) {
+  const q = Math.floor(marks / 3);
+  const btn = "w-4 h-4 rounded-full flex items-center justify-center transition-colors hover:bg-black/10 disabled:opacity-40 disabled:hover:bg-transparent";
+  return (
+    <span
+      className="ml-1.5 inline-flex items-center rounded-full py-0.5 pl-1 pr-1"
+      style={{ backgroundColor: `${color}26` }}
+    >
+      <button
+        type="button"
+        disabled={q <= 0}
+        onClick={() => onChange(Math.max(0, (q - 1) * 3))}
+        className={btn}
+        style={{ color }}
+        aria-label="One question less"
+      >
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><path d="M5 12h14" /></svg>
+      </button>
+      <span className="px-1 text-[10px] font-bold leading-4 tabular-nums" style={{ color }}>
+        {q}/{total}
+      </span>
+      <button
+        type="button"
+        disabled={marks >= max}
+        onClick={() => onChange(Math.min(max, (q + 1) * 3))}
+        className={btn}
+        style={{ color }}
+        aria-label="One question more"
+      >
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+      </button>
+    </span>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function MarksAIR() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -623,10 +662,6 @@ export default function MarksAIR() {
     }
     setCatInputMode(newMode);
   };
-
-  // CAT: 3 marks per question → VARC 24Q, DILR 22Q, QA 22Q
-  const catQuestion = (marks: number, total: number) =>
-    `${Math.min(Math.floor(marks / 3), total)}/${total}`;
 
   const handleCatReset = () => {
     setCatScores({ varc: 0, dilr: 0, qa: 0 });
@@ -1183,12 +1218,10 @@ export default function MarksAIR() {
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: varcColor }}>
                           VARC
-                          <span
-                            className="ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold leading-4"
-                            style={{ backgroundColor: `${varcColor}26`, color: varcColor }}
-                          >
-                            {catQuestion(catScores.varc, 24)}
-                          </span>
+                          <CatQStep
+                            marks={catScores.varc} max={72} total={24} color={varcColor}
+                            onChange={(m) => setCatScores(prev => ({ ...prev, varc: m }))}
+                          />
                         </label>
                         <span className="text-sm font-bold tabular-nums" style={{ color: text }}>{catScores.varc} <span className="text-[10px] font-medium opacity-50">/ 72</span></span>
                       </div>
@@ -1206,12 +1239,10 @@ export default function MarksAIR() {
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: dilrColor }}>
                           DILR
-                          <span
-                            className="ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold leading-4"
-                            style={{ backgroundColor: `${dilrColor}26`, color: dilrColor }}
-                          >
-                            {catQuestion(catScores.dilr, 22)}
-                          </span>
+                          <CatQStep
+                            marks={catScores.dilr} max={66} total={22} color={dilrColor}
+                            onChange={(m) => setCatScores(prev => ({ ...prev, dilr: m }))}
+                          />
                         </label>
                         <span className="text-sm font-bold tabular-nums" style={{ color: text }}>{catScores.dilr} <span className="text-[10px] font-medium opacity-50">/ 66</span></span>
                       </div>
@@ -1229,12 +1260,10 @@ export default function MarksAIR() {
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: qaColor }}>
                           QA
-                          <span
-                            className="ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold leading-4"
-                            style={{ backgroundColor: `${qaColor}26`, color: qaColor }}
-                          >
-                            {catQuestion(catScores.qa, 22)}
-                          </span>
+                          <CatQStep
+                            marks={catScores.qa} max={66} total={22} color={qaColor}
+                            onChange={(m) => setCatScores(prev => ({ ...prev, qa: m }))}
+                          />
                         </label>
                         <span className="text-sm font-bold tabular-nums" style={{ color: text }}>{catScores.qa} <span className="text-[10px] font-medium opacity-50">/ 66</span></span>
                       </div>
