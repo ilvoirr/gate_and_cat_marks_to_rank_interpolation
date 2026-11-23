@@ -503,6 +503,39 @@ const CAT_QA_DATA = [
   { m: 64, p: 100.00 }, { m: 66, p: 100.00 }
 ];
 
+// QA topicwise picker — value = number of questions (×3 = marks)
+const QA_TOPICS = [
+  { name: "Equations, Polynomials & Algebra", q: 5 },
+  { name: "Percentage, Average & Ratios", q: 4 },
+  { name: "Geometry & Coordinate Geometry", q: 3 },
+  { name: "Sequence, Series & Progression", q: 2 },
+  { name: "Speed, Distance & Time", q: 2 },
+  { name: "Time & Work", q: 1 },
+  { name: "Log & Exponent", q: 1 },
+  { name: "Profit, Loss & Discount", q: 1 },
+  { name: "Simple & Compound Interest", q: 1 },
+  { name: "Inequality & Graphs", q: 1 },
+  { name: "Remainder & Divisibility", q: 1 },
+];
+
+// VARC topicwise picker — RCs carry 4 questions each, para questions 2 each
+const VARC_TOPICS = [
+  { name: "RC1", q: 4 },
+  { name: "RC2", q: 4 },
+  { name: "RC3", q: 4 },
+  { name: "RC4", q: 4 },
+  { name: "PARAJUMBLE", q: 2 },
+  { name: "PARASUMMARY", q: 2 },
+  { name: "PARAFILL", q: 2 },
+  { name: "PARAKEY", q: 2 },
+];
+
+type TopicSection = "qa" | "varc";
+const SECTION_TOPICS: Record<TopicSection, { name: string; q: number }[]> = {
+  qa: QA_TOPICS,
+  varc: VARC_TOPICS,
+};
+
 // ── Interpolation helpers ──────────────────────────────────────────────────────
 function interpolateSection(data: { m: number; p: number }[], marks: number): number {
   const sorted = [...data].sort((a, b) => b.m - a.m);
@@ -632,6 +665,11 @@ export default function MarksAIR() {
   const [catScores, setCatScores] = useState({ varc: 27, dilr: 26, qa: 27 });
   
   const [hover, setHover] = useState<HoverInfo>(null);
+  const [topicModal, setTopicModal] = useState<TopicSection | null>(null);
+  const [topicSel, setTopicSel] = useState<Record<TopicSection, number[]>>({
+    qa: QA_TOPICS.map(() => 0),
+    varc: VARC_TOPICS.map(() => 0),
+  });
 
   const currentCatTotal = catInputMode === "sections" 
     ? catScores.varc + catScores.dilr + catScores.qa 
@@ -666,6 +704,27 @@ export default function MarksAIR() {
   const handleCatReset = () => {
     setCatScores({ varc: 0, dilr: 0, qa: 0 });
     setCatTotalOnly(0);
+    setTopicSel({ qa: QA_TOPICS.map(() => 0), varc: VARC_TOPICS.map(() => 0) });
+  };
+
+  const clearTopics = (section: TopicSection) =>
+    setTopicSel((prev) => ({ ...prev, [section]: SECTION_TOPICS[section].map(() => 0) }));
+
+  const adjustTopic = (section: TopicSection, i: number, delta: number) => {
+    const topics = SECTION_TOPICS[section];
+    const next = topicSel[section].map((v, j) =>
+      j === i ? Math.min(topics[j].q, Math.max(0, v + delta)) : v
+    );
+    setTopicSel((prev) => ({ ...prev, [section]: next }));
+    const questions = next.reduce((s, v) => s + v, 0);
+    setCatScores((prev) => ({ ...prev, [section]: questions * 3 }));
+  };
+
+  const topicQuestions = (section: TopicSection) => topicSel[section].reduce((s, v) => s + v, 0);
+
+  const resetTopics = (section: TopicSection) => {
+    clearTopics(section);
+    setCatScores((prev) => ({ ...prev, [section]: 0 }));
   };
 
   // ── Theme tokens ─────────────────────────────────────────────────────────────
@@ -936,6 +995,29 @@ export default function MarksAIR() {
   }, [mode, catInputMode]);
 
   const handlePointerLeave = useCallback(() => setHover(null), []);
+
+  // Close topicwise modal on Escape
+  useEffect(() => {
+    if (topicModal === null) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setTopicModal(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [topicModal]);
+
+  // Topicwise modal config — resolves per open section (VARC or QA)
+  const topicCfg = topicModal
+    ? {
+        name: topicModal.toUpperCase(),
+        color: topicModal === "varc" ? varcColor : qaColor,
+        marks: catScores[topicModal],
+        maxMarks: topicModal === "varc" ? 72 : 66,
+        totalQ: topicModal === "varc" ? 24 : 22,
+        pct: topicModal === "varc" ? varcResult.p : qaResult.p,
+        questions: topicQuestions(topicModal),
+        sel: topicSel[topicModal],
+        topics: SECTION_TOPICS[topicModal],
+      }
+    : null;
 
   return (
     <div
@@ -1214,21 +1296,42 @@ export default function MarksAIR() {
                 ) : (
                   <>
                     {/* VARC Glass Slider */}
-                    <div className="p-3 rounded-xl border" style={{ borderColor: `${varcColor}33`, backgroundColor: `${varcColor}0d` }}>
+                    <div
+                      className="p-3 rounded-xl border cursor-pointer"
+                      style={{ borderColor: `${varcColor}33`, backgroundColor: `${varcColor}0d` }}
+                      onClick={() => setTopicModal("varc")}
+                    >
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: varcColor }}>
                           VARC
-                          <CatQStep
-                            marks={catScores.varc} max={72} total={24} color={varcColor}
-                            onChange={(m) => setCatScores(prev => ({ ...prev, varc: m }))}
-                          />
+                          <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+                            <CatQStep
+                              marks={catScores.varc} max={72} total={24} color={varcColor}
+                              onChange={(m) => {
+                                setCatScores(prev => ({ ...prev, varc: m }));
+                                clearTopics("varc");
+                              }}
+                            />
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setTopicModal("varc"); }}
+                            className="ml-1.5 text-[9px] font-bold uppercase tracking-wider rounded-full px-1.5 py-0.5 transition-opacity hover:opacity-70"
+                            style={{ color: varcColor, backgroundColor: `${varcColor}14` }}
+                          >
+                            Topicwise
+                          </button>
                         </label>
                         <span className="text-sm font-bold tabular-nums" style={{ color: text }}>{catScores.varc} <span className="text-[10px] font-medium opacity-50">/ 72</span></span>
                       </div>
                       <input
                         type="range" min={0} max={72} step={1}
                         value={catScores.varc}
-                        onChange={(e) => setCatScores(prev => ({ ...prev, varc: parseInt(e.target.value) }))}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          setCatScores(prev => ({ ...prev, varc: parseInt(e.target.value) }));
+                          clearTopics("varc");
+                        }}
                         className="cat-range w-full"
                         style={{ "--cat-thumb": varcColor, "--cat-track": `${varcColor}40`, "--cat-fill": `${(catScores.varc / 72) * 100}%`, accentColor: varcColor } as CSSProperties}
                       />
@@ -1256,21 +1359,42 @@ export default function MarksAIR() {
                     </div>
 
                     {/* QA Glass Slider */}
-                    <div className="p-3 rounded-xl border" style={{ borderColor: `${qaColor}33`, backgroundColor: `${qaColor}0d` }}>
+                    <div
+                      className="p-3 rounded-xl border cursor-pointer"
+                      style={{ borderColor: `${qaColor}33`, backgroundColor: `${qaColor}0d` }}
+                      onClick={() => setTopicModal("qa")}
+                    >
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: qaColor }}>
                           QA
-                          <CatQStep
-                            marks={catScores.qa} max={66} total={22} color={qaColor}
-                            onChange={(m) => setCatScores(prev => ({ ...prev, qa: m }))}
-                          />
+                          <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+                            <CatQStep
+                              marks={catScores.qa} max={66} total={22} color={qaColor}
+                              onChange={(m) => {
+                                setCatScores(prev => ({ ...prev, qa: m }));
+                                clearTopics("qa");
+                              }}
+                            />
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setTopicModal("qa"); }}
+                            className="ml-1.5 text-[9px] font-bold uppercase tracking-wider rounded-full px-1.5 py-0.5 transition-opacity hover:opacity-70"
+                            style={{ color: qaColor, backgroundColor: `${qaColor}14` }}
+                          >
+                            Topicwise
+                          </button>
                         </label>
                         <span className="text-sm font-bold tabular-nums" style={{ color: text }}>{catScores.qa} <span className="text-[10px] font-medium opacity-50">/ 66</span></span>
                       </div>
                       <input
                         type="range" min={0} max={66} step={1}
                         value={catScores.qa}
-                        onChange={(e) => setCatScores(prev => ({ ...prev, qa: parseInt(e.target.value) }))}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          setCatScores(prev => ({ ...prev, qa: parseInt(e.target.value) }));
+                          clearTopics("qa");
+                        }}
                         className="cat-range w-full"
                         style={{ "--cat-thumb": qaColor, "--cat-track": `${qaColor}40`, "--cat-fill": `${(catScores.qa / 66) * 100}%`, accentColor: qaColor } as CSSProperties}
                       />
@@ -1371,6 +1495,126 @@ export default function MarksAIR() {
 
         </div>
       </div>
+
+      {/* ── Topicwise Modal (VARC / QA) ── */}
+      {topicModal && topicCfg && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setTopicModal(null)}
+        >
+          <div
+            className={`${surface} ${border} border rounded-2xl shadow-xl w-full ${topicModal === "varc" ? "max-w-3xl" : "max-w-5xl"} p-5`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold">{topicCfg.name} — Topicwise</h3>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => resetTopics(topicModal)}
+                  title={`Reset ${topicCfg.name} topics`}
+                  className={`w-6 h-6 rounded-md border ${border} ${sfOff} ${muted} flex items-center justify-center transition-opacity hover:opacity-70`}
+                  aria-label="Reset topics"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTopicModal(null)}
+                  className={`w-6 h-6 rounded-md border ${border} ${sfOff} ${muted} flex items-center justify-center transition-opacity hover:opacity-70`}
+                  aria-label="Close"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Live section score slider */}
+            <div className="p-3.5 rounded-xl border mb-4" style={{ borderColor: `${topicCfg.color}33`, backgroundColor: `${topicCfg.color}0d` }}>
+              <div className="flex justify-between items-end mb-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: topicCfg.color }}>{topicCfg.name} Score</span>
+                <span className="text-base font-bold tabular-nums">
+                  {topicCfg.marks} <span className="text-[11px] font-medium opacity-50">/ {topicCfg.maxMarks}</span>
+                </span>
+              </div>
+              <input
+                type="range" min={0} max={topicCfg.maxMarks} step={1}
+                value={topicCfg.marks}
+                onChange={(e) => {
+                  setCatScores((prev) => ({ ...prev, [topicModal]: parseInt(e.target.value) }));
+                  clearTopics(topicModal);
+                }}
+                className="cat-range w-full"
+                style={{ "--cat-thumb": topicCfg.color, "--cat-track": `${topicCfg.color}40`, "--cat-fill": `${(topicCfg.marks / topicCfg.maxMarks) * 100}%`, accentColor: topicCfg.color } as CSSProperties}
+              />
+              <div className="flex justify-between items-center mt-1.5">
+                <span className="text-xs font-bold tabular-nums" style={{ color: topicCfg.color }}>
+                  {topicCfg.questions}/{topicCfg.totalQ} QUESTIONS
+                </span>
+                <span className="text-xs font-bold tabular-nums" style={{ color: topicCfg.color }}>
+                  {topicCfg.pct >= 100 ? "100" : topicCfg.pct.toFixed(2)}%ile
+                </span>
+              </div>
+            </div>
+
+            {/* Topic grid — double column for VARC, 3 for QA */}
+            <div className={`grid gap-2 ${topicModal === "varc" ? "grid-cols-2 grid-rows-4 grid-flow-col" : "grid-cols-2 sm:grid-cols-3"}`}>
+              {topicCfg.topics.map((t, i) => {
+                const sel = topicCfg.sel[i];
+                const active = sel > 0;
+                const full = sel >= t.q;
+                const miniBtn = "w-5 h-5 rounded-full flex items-center justify-center transition-colors hover:bg-black/10 disabled:opacity-40 disabled:hover:bg-transparent";
+                return (
+                  <div
+                    key={t.name}
+                    className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border transition-colors ${
+                      active ? "" : `${border} ${sfOff}`
+                    }`}
+                    style={active
+                      ? {
+                          borderColor: full ? `${topicCfg.color}aa` : `${topicCfg.color}55`,
+                          backgroundColor: full ? `${topicCfg.color}30` : `${topicCfg.color}14`,
+                        }
+                      : undefined}
+                  >
+                    <span className="text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+                      {t.name}
+                    </span>
+                    <span
+                      className="inline-flex items-center shrink-0 rounded-full py-0.5 pl-0.5 pr-1"
+                      style={{ backgroundColor: full ? `${topicCfg.color}3d` : `${topicCfg.color}1f` }}
+                    >
+                      <button
+                        type="button"
+                        disabled={sel <= 0}
+                        onClick={() => adjustTopic(topicModal, i, -1)}
+                        className={miniBtn}
+                        style={{ color: topicCfg.color }}
+                        aria-label="Less"
+                      >
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><path d="M5 12h14" /></svg>
+                      </button>
+                      <span className="px-1.5 text-[11px] font-bold leading-4 tabular-nums" style={{ color: topicCfg.color }}>
+                        {sel}/{t.q}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={sel >= t.q}
+                        onClick={() => adjustTopic(topicModal, i, 1)}
+                        className={miniBtn}
+                        style={{ color: topicCfg.color }}
+                        aria-label="More"
+                      >
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                      </button>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
